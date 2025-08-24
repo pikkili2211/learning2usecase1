@@ -5,22 +5,32 @@ import json
 app = Flask(__name__)
 
 class ReceptiveFieldCalculator:
-    """Calculate receptive field for neural network layers"""
+    """Calculate receptive field and parameters for neural network layers"""
     
     def __init__(self):
         self.layers = []
         self.receptive_fields = []
+        self.parameter_counts = []
+        self.input_channels = 3  # Default RGB input
+        self.layer_channels = [3]  # Track channels through layers
         
-    def add_conv_layer(self, kernel_size, stride=1, padding=0):
+    def add_conv_layer(self, kernel_size, stride=1, padding=0, out_channels=None):
         """Add a convolutional layer"""
+        if out_channels is None:
+            out_channels = self.layer_channels[-1]  # Keep same number of channels
+            
         layer = {
             'type': 'conv',
             'kernel_size': kernel_size,
             'stride': stride,
-            'padding': padding
+            'padding': padding,
+            'in_channels': self.layer_channels[-1],
+            'out_channels': out_channels
         }
         self.layers.append(layer)
+        self.layer_channels.append(out_channels)
         self._calculate_receptive_fields()
+        self._calculate_parameters()
         return layer
     
     def add_pool_layer(self, kernel_size, stride=None, padding=0):
@@ -32,10 +42,14 @@ class ReceptiveFieldCalculator:
             'type': 'pool',
             'kernel_size': kernel_size,
             'stride': stride,
-            'padding': padding
+            'padding': padding,
+            'in_channels': self.layer_channels[-1],
+            'out_channels': self.layer_channels[-1]  # Pooling doesn't change channels
         }
         self.layers.append(layer)
+        self.layer_channels.append(self.layer_channels[-1])
         self._calculate_receptive_fields()
+        self._calculate_parameters()
         return layer
     
     def _calculate_receptive_fields(self):
@@ -75,18 +89,66 @@ class ReceptiveFieldCalculator:
             j_in = j_out
             r_in = r_out
     
+    def _calculate_parameters(self):
+        """Calculate parameters (weights and biases) for each layer"""
+        self.parameter_counts = []
+        
+        for i, layer in enumerate(self.layers):
+            if layer['type'] == 'conv':
+                # Convolutional layer: (kernel_size × kernel_size × in_channels × out_channels) + out_channels
+                weights = layer['kernel_size'] ** 2 * layer['in_channels'] * layer['out_channels']
+                biases = layer['out_channels']
+                total_params = weights + biases
+                
+                param_info = {
+                    'layer_index': i,
+                    'layer_type': 'conv',
+                    'weights': weights,
+                    'biases': biases,
+                    'total_params': total_params,
+                    'formula': f"({layer['kernel_size']}² × {layer['in_channels']} × {layer['out_channels']}) + {layer['out_channels']}"
+                }
+                
+            elif layer['type'] == 'pool':
+                # Pooling layers have no learnable parameters
+                param_info = {
+                    'layer_index': i,
+                    'layer_type': 'pool',
+                    'weights': 0,
+                    'biases': 0,
+                    'total_params': 0,
+                    'formula': 'No learnable parameters'
+                }
+            
+            self.parameter_counts.append(param_info)
+    
     def get_summary(self):
-        """Get summary of all layers and their receptive fields"""
+        """Get summary of all layers, receptive fields, and parameters"""
+        total_network_params = sum(param['total_params'] for param in self.parameter_counts)
+        
         return {
             'layers': self.layers,
             'receptive_fields': self.receptive_fields,
-            'total_layers': len(self.layers)
+            'parameter_counts': self.parameter_counts,
+            'total_layers': len(self.layers),
+            'total_network_params': total_network_params,
+            'input_channels': self.input_channels,
+            'layer_channels': self.layer_channels
         }
     
     def clear_layers(self):
         """Clear all layers"""
         self.layers = []
         self.receptive_fields = []
+        self.parameter_counts = []
+        self.layer_channels = [self.input_channels]
+    
+    def set_input_channels(self, channels):
+        """Set the number of input channels"""
+        self.input_channels = channels
+        self.layer_channels = [channels]
+        if self.layers:  # Recalculate if layers exist
+            self._calculate_parameters()
 
 # Global calculator instance
 calculator = ReceptiveFieldCalculator()
@@ -107,7 +169,8 @@ def add_layer():
             layer = calculator.add_conv_layer(
                 kernel_size=data.get('kernel_size', 3),
                 stride=data.get('stride', 1),
-                padding=data.get('padding', 0)
+                padding=data.get('padding', 0),
+                out_channels=data.get('out_channels', None)
             )
         elif layer_type == 'pool':
             layer = calculator.add_pool_layer(
@@ -135,6 +198,20 @@ def clear_layers():
         return jsonify({
             'success': True,
             'message': 'All layers cleared'
+        })
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+@app.route('/api/set_input_channels', methods=['POST'])
+def set_input_channels():
+    """API endpoint to set input channels"""
+    try:
+        data = request.get_json()
+        channels = data.get('channels', 3)
+        calculator.set_input_channels(channels)
+        return jsonify({
+            'success': True,
+            'summary': calculator.get_summary()
         })
     except Exception as e:
         return jsonify({'error': str(e)}), 500
