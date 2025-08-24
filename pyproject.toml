@@ -1,7 +1,18 @@
 [project]
 name = "class-code"
 version = "0.1.0"
-description = "Add your description here"
+description = "Neural Network Receptive Field Calculator"
 readme = "README.md"
 requires-python = ">=3.13"
-dependencies = []
+dependencies = [
+    "flask>=3.0.0",
+    "numpy>=1.24.0",
+    "matplotlib>=3.7.0"
+]
+
+[project.optional-dependencies]
+dev = [
+    "pytest>=7.0.0",
+    "black>=23.0.0",
+    "flake8>=6.0.0"
+]

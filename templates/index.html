@@ -1,0 +1,370 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Neural Network Receptive Field Calculator</title>
+    <style>
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 20px;
+            background-color: #f5f5f5;
+        }
+        
+        .header {
+            text-align: center;
+            margin-bottom: 30px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 20px;
+            border-radius: 10px;
+        }
+        
+        .container {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 30px;
+        }
+        
+        .control-panel {
+            background: white;
+            padding: 25px;
+            border-radius: 10px;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+        }
+        
+        .results-panel {
+            background: white;
+            padding: 25px;
+            border-radius: 10px;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+        }
+        
+        .form-group {
+            margin-bottom: 20px;
+        }
+        
+        label {
+            display: block;
+            margin-bottom: 5px;
+            font-weight: 600;
+            color: #333;
+        }
+        
+        input, select {
+            width: 100%;
+            padding: 10px;
+            border: 2px solid #ddd;
+            border-radius: 5px;
+            font-size: 16px;
+            transition: border-color 0.3s;
+        }
+        
+        input:focus, select:focus {
+            outline: none;
+            border-color: #667eea;
+        }
+        
+        .btn {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 12px 24px;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            font-size: 16px;
+            font-weight: 600;
+            transition: transform 0.2s;
+            margin-right: 10px;
+            margin-bottom: 10px;
+        }
+        
+        .btn:hover {
+            transform: translateY(-2px);
+        }
+        
+        .btn-danger {
+            background: linear-gradient(135deg, #ff6b6b 0%, #ee5a24 100%);
+        }
+        
+        .layer-card {
+            background: #f8f9fa;
+            border: 1px solid #dee2e6;
+            border-radius: 8px;
+            padding: 15px;
+            margin-bottom: 15px;
+            position: relative;
+        }
+        
+        .layer-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 10px;
+        }
+        
+        .layer-type {
+            background: #667eea;
+            color: white;
+            padding: 4px 12px;
+            border-radius: 20px;
+            font-size: 12px;
+            font-weight: 600;
+        }
+        
+        .layer-type.pool {
+            background: #28a745;
+        }
+        
+        .rf-info {
+            background: #e3f2fd;
+            border: 1px solid #2196f3;
+            border-radius: 5px;
+            padding: 10px;
+            margin-top: 10px;
+        }
+        
+        .rf-info h4 {
+            margin: 0 0 10px 0;
+            color: #1976d2;
+        }
+        
+        .rf-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+            gap: 10px;
+        }
+        
+        .rf-item {
+            background: white;
+            padding: 8px;
+            border-radius: 4px;
+            text-align: center;
+        }
+        
+        .rf-value {
+            font-size: 18px;
+            font-weight: 600;
+            color: #1976d2;
+        }
+        
+        .rf-label {
+            font-size: 12px;
+            color: #666;
+            text-transform: uppercase;
+        }
+        
+        .empty-state {
+            text-align: center;
+            color: #666;
+            padding: 40px 20px;
+        }
+        
+        .empty-state i {
+            font-size: 48px;
+            margin-bottom: 20px;
+            opacity: 0.3;
+        }
+        
+        @media (max-width: 768px) {
+            .container {
+                grid-template-columns: 1fr;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <h1>🧠 Neural Network Receptive Field Calculator</h1>
+        <p>Add CNN and pooling layers to see how they affect the receptive field</p>
+    </div>
+    
+    <div class="container">
+        <div class="control-panel">
+            <h2>Add New Layer</h2>
+            
+            <div class="form-group">
+                <label for="layerType">Layer Type:</label>
+                <select id="layerType">
+                    <option value="conv">Convolutional Layer</option>
+                    <option value="pool">Max Pooling Layer</option>
+                </select>
+            </div>
+            
+            <div class="form-group">
+                <label for="kernelSize">Kernel Size:</label>
+                <input type="number" id="kernelSize" value="3" min="1" max="11">
+            </div>
+            
+            <div class="form-group">
+                <label for="stride">Stride:</label>
+                <input type="number" id="stride" value="1" min="1" max="5">
+                <small>For pooling layers, leave empty to use kernel size as stride</small>
+            </div>
+            
+            <div class="form-group">
+                <label for="padding">Padding:</label>
+                <input type="number" id="padding" value="0" min="0" max="5">
+            </div>
+            
+            <button class="btn" onclick="addLayer()">Add Layer</button>
+            <button class="btn btn-danger" onclick="clearLayers()">Clear All Layers</button>
+        </div>
+        
+        <div class="results-panel">
+            <h2>Network Architecture & Receptive Fields</h2>
+            <div id="layersContainer">
+                <div class="empty-state">
+                    <div>🔧</div>
+                    <p>No layers added yet. Start by adding a convolutional or pooling layer above!</p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Update stride input behavior based on layer type
+        document.getElementById('layerType').addEventListener('change', function() {
+            const strideInput = document.getElementById('stride');
+            if (this.value === 'pool') {
+                strideInput.placeholder = 'Leave empty for kernel size';
+                strideInput.value = '';
+            } else {
+                strideInput.placeholder = 'Stride value';
+                strideInput.value = '1';
+            }
+        });
+
+        async function addLayer() {
+            const layerType = document.getElementById('layerType').value;
+            const kernelSize = parseInt(document.getElementById('kernelSize').value);
+            const strideInput = document.getElementById('stride').value;
+            const padding = parseInt(document.getElementById('padding').value);
+            
+            // Validate inputs
+            if (!kernelSize || kernelSize < 1) {
+                alert('Please enter a valid kernel size');
+                return;
+            }
+            
+            let stride = strideInput === '' ? null : parseInt(strideInput);
+            if (stride !== null && (stride < 1 || stride > kernelSize)) {
+                alert('Stride must be between 1 and kernel size');
+                return;
+            }
+            
+            try {
+                const response = await fetch('/api/add_layer', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({
+                        type: layerType,
+                        kernel_size: kernelSize,
+                        stride: stride,
+                        padding: padding
+                    })
+                });
+                
+                const result = await response.json();
+                
+                if (result.success) {
+                    displayLayers(result.summary);
+                } else {
+                    alert('Error: ' + result.error);
+                }
+            } catch (error) {
+                console.error('Error:', error);
+                alert('Error adding layer');
+            }
+        }
+
+        async function clearLayers() {
+            if (!confirm('Are you sure you want to clear all layers?')) {
+                return;
+            }
+            
+            try {
+                const response = await fetch('/api/clear_layers', {
+                    method: 'POST'
+                });
+                
+                const result = await response.json();
+                
+                if (result.success) {
+                    displayLayers({ layers: [], receptive_fields: [], total_layers: 0 });
+                }
+            } catch (error) {
+                console.error('Error:', error);
+                alert('Error clearing layers');
+            }
+        }
+
+        function displayLayers(summary) {
+            const container = document.getElementById('layersContainer');
+            
+            if (summary.total_layers === 0) {
+                container.innerHTML = `
+                    <div class="empty-state">
+                        <div>🔧</div>
+                        <p>No layers added yet. Start by adding a convolutional or pooling layer above!</p>
+                    </div>
+                `;
+                return;
+            }
+            
+            let html = '';
+            
+            summary.receptive_fields.forEach((rf, index) => {
+                const layer = summary.layers[index];
+                const layerTypeClass = layer.type === 'pool' ? 'pool' : '';
+                
+                html += `
+                    <div class="layer-card">
+                        <div class="layer-header">
+                            <span class="layer-type ${layerTypeClass}">${layer.type.toUpperCase()}</span>
+                            <strong>Layer ${index + 1}</strong>
+                        </div>
+                        
+                        <div><strong>Parameters:</strong> Kernel: ${layer.kernel_size}, Stride: ${layer.stride}, Padding: ${layer.padding}</div>
+                        
+                        <div class="rf-info">
+                            <h4>Receptive Field Information</h4>
+                            <div class="rf-grid">
+                                <div class="rf-item">
+                                    <div class="rf-value">${rf.receptive_field_size.toFixed(1)}</div>
+                                    <div class="rf-label">RF Size</div>
+                                </div>
+                                <div class="rf-item">
+                                    <div class="rf-value">${rf.jump.toFixed(1)}</div>
+                                    <div class="rf-label">Jump</div>
+                                </div>
+                                <div class="rf-item">
+                                    <div class="rf-value">${rf.center.toFixed(1)}</div>
+                                    <div class="rf-label">Center</div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                `;
+            });
+            
+            container.innerHTML = html;
+        }
+
+        // Load initial state
+        window.addEventListener('load', async function() {
+            try {
+                const response = await fetch('/api/get_summary');
+                const summary = await response.json();
+                displayLayers(summary);
+            } catch (error) {
+                console.error('Error loading initial state:', error);
+            }
+        });
+    </script>
+</body>
+</html>
